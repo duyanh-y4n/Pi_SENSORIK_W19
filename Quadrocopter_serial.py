@@ -10,7 +10,7 @@ import os
 import sys
 
 
-def Serial_controller(bytesize, parity, baudrate, stopbit):
+def Serial_begin(bytesize, parity, baudrate, stopbit):
     if os.name == 'posix':
         ser = serial.Serial('/dev/ttyUSB0')
         ser.bytesize = bytesize

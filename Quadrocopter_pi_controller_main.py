@@ -5,12 +5,10 @@
 # Date            : 27.10.2019
 # Last Modified By: Duy Anh Pham <duyanh.y4n.pham@gmail.com>
 
-import serial
-import os
-import sys
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import numpy as np
+from Quadrocopter_serial import *
 
 #####################################################
 # config communication
@@ -18,24 +16,8 @@ import numpy as np
 uart_bytesize = 8
 uart_parity = 'N'
 uart_baudrate = 9600
-uart_stopbit = 1
-if os.name == 'posix':
-    ser = serial.Serial('/dev/ttyUSB0')
-    ser.bytesize = uart_bytesize
-    ser.parity = uart_parity
-    ser.baudrate = uart_baudrate
-elif os.name == 'nt':
-    print("choose device index:")
-    comlist = serial.tools.list_ports.comports()
-    for i, elem in enumerate(comlist):
-        print(str(i) + ":" + elem.device)
-        sys.stdout.flush()
-    idx = int(input())
-    ser = serial.Serial(comlist[idx].device, uart_baudrate)
-
-print(
-    "open " + ser.name + "\nbaud: " + str(ser.baudrate) + "\ndata format:" + str(ser.bytesize) + str(ser.parity) + str(
-        ser.stopbits))
+uart_stopbits = 1
+ser = Serial_controller(uart_bytesize, uart_parity, uart_baudrate, uart_stopbits)
 
 #####################################################
 # Init Visualization
@@ -58,22 +40,39 @@ plt.ion()
 
 fig = plt.figure()
 
-########### subplot ############
-ax = fig.add_subplot(111)
+########### subplot RX ############
+plot_RX = fig.add_subplot(121)
 # y axis
-ax.set_ylim([y_min, y_max])
-ax.set_ylabel("Sensor data")
+plot_RX.set_ylim([y_min, y_max])
+plot_RX.set_ylabel("Sensor data")
 # y axis
-ax.set_xlim([x_min, x_max])
-ax.set_xlabel("Sample")
-ax.xaxis.set_major_locator(MaxNLocator(integer=True)
+plot_RX.set_xlim([x_min, x_max])
+plot_RX.set_xlabel("Sample")
+plot_RX.xaxis.set_major_locator(MaxNLocator(integer=True)
                            )  # set xticks interger only
 #
-ax.set_title("Test realtime visualization")
-plot_text = ax.text(tex_align_x, tex_align_y, text_last_value, horizontalalignment='center',
+plot_RX.set_title("RX")
+plot_text_RX = plot_RX.text(tex_align_x, tex_align_y, text_last_value, horizontalalignment='center',
                     verticalalignment='center',
-                    transform=ax.transAxes)
-line1, = ax.plot(x, y, 'r-')  # Returns a tuple of line objects, thus the comma
+                    transform=plot_RX.transAxes)
+line1, = plot_RX.plot(x, y, 'r-')  # Returns a tuple of line objects, thus the comma
+
+########### subplot RY ############
+plot_RY = fig.add_subplot(122)
+# y axis
+plot_RY.set_ylim([y_min, y_max])
+plot_RY.set_ylabel("Sensor data")
+# y axis
+plot_RY.set_xlim([x_min, x_max])
+plot_RY.set_xlabel("Sample")
+plot_RY.xaxis.set_major_locator(MaxNLocator(integer=True)
+                           )  # set xticks interger only
+#
+plot_RY.set_title("RY")
+plot_text_RY = plot_RY.text(tex_align_x, tex_align_y, text_last_value, horizontalalignment='center',
+                    verticalalignment='center',
+                    transform=plot_RY.transAxes)
+line1, = plot_RX.plot(x, y, 'r-')  # Returns a tuple of line objects, thus the comma
 
 #####################################################
 # Main programm loop
@@ -86,7 +85,7 @@ while True:
     y[-1] = int.from_bytes(read_serial, byteorder="big")
     text_last_value = "last value: " + str(y[-1])
     # update plot
-    plot_text.set_text(text_last_value)
+    plot_text_RX.set_text(text_last_value)
     line1.set_ydata(y)
     fig.canvas.draw()
     fig.canvas.flush_events()

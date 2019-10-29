@@ -7,9 +7,10 @@
 
 import matplotlib.pyplot as plt
 
-def Plot_figure_monitor():
+def Plot_figure_monitor(interactive = True):
 # You probably won't need this if you're embedding things in a tkinter plot...
-    plt.ion() #interactive mode
+    if interactive:
+        plt.ion() #interactive mode
     return plt.figure()
 
 

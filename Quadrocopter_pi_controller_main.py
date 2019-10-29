@@ -7,6 +7,7 @@
 
 import serial
 import os
+import sys
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
 import numpy as np
@@ -18,12 +19,19 @@ uart_bytesize = 8
 uart_parity = 'N'
 uart_baudrate = 9600
 uart_stopbit = 1
-
-ser = serial.Serial('/dev/ttyUSB0')
-ser.bytesize = uart_bytesize
-ser.parity = uart_parity
-ser.baudrate = uart_baudrate
-ser.stopbits = uart_stopbit
+if os.name == 'posix':
+    ser = serial.Serial('/dev/ttyUSB0')
+    ser.bytesize = uart_bytesize
+    ser.parity = uart_parity
+    ser.baudrate = uart_baudrate
+elif os.name == 'nt':
+    print("choose device index:")
+    comlist = serial.tools.list_ports.comports()
+    for i, elem in enumerate(comlist):
+        print(str(i) + ":" + elem.device)
+        sys.stdout.flush()
+    idx = int(input())
+    ser = serial.Serial(comlist[idx].device, uart_baudrate)
 
 print(
     "open " + ser.name + "\nbaud: " + str(ser.baudrate) + "\ndata format:" + str(ser.bytesize) + str(ser.parity) + str(
@@ -52,18 +60,19 @@ fig = plt.figure()
 
 ########### subplot ############
 ax = fig.add_subplot(111)
-#y axis
+# y axis
 ax.set_ylim([y_min, y_max])
 ax.set_ylabel("Sensor data")
-#y axis
+# y axis
 ax.set_xlim([x_min, x_max])
 ax.set_xlabel("Sample")
-ax.xaxis.set_major_locator(MaxNLocator(integer=True))#set xticks interger only
+ax.xaxis.set_major_locator(MaxNLocator(integer=True)
+                           )  # set xticks interger only
 #
 ax.set_title("Test realtime visualization")
 plot_text = ax.text(tex_align_x, tex_align_y, text_last_value, horizontalalignment='center',
-        verticalalignment='center',
-        transform=ax.transAxes)
+                    verticalalignment='center',
+                    transform=ax.transAxes)
 line1, = ax.plot(x, y, 'r-')  # Returns a tuple of line objects, thus the comma
 
 #####################################################

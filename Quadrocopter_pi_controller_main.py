@@ -11,6 +11,7 @@ from Quadrocopter_serial import Serial_begin
 from Quadrocopter_plot import *
 from Quadrocopter_dataframe import *
 import sys
+import math
 
 #####################################################
 # config communication
@@ -47,7 +48,7 @@ text_align_y = 0.95
 data_visual_figure = Plot_init_figure_monitor()
 
 ########### subplot Joystick RX ############
-axis_plot_RX = data_visual_figure.add_subplot(121)
+axis_plot_RX = data_visual_figure.add_subplot(221)
 Plot_set_axis(axis_plot_RX,
               xlim, ylim,
               xlabel='n. Sample', ylabel='Sensor Data',
@@ -63,7 +64,7 @@ plot_line_RX, = Plot_add_line(axis_plot_RX, x, y_JoystickRX, 'r-')
 
 
 ########### subplot Joystick RY ############
-axis_plot_RY = data_visual_figure.add_subplot(122)
+axis_plot_RY = data_visual_figure.add_subplot(222)
 Plot_set_axis(axis_plot_RY,
               xlim, ylim,
               xlabel='n. Sample', ylabel='',
@@ -78,6 +79,32 @@ axis_plot_text_RY = Plot_add_text(axis_plot_RY,
 
 plot_line_RY, = Plot_add_line(axis_plot_RY, x, y_JoystickRY, 'r-')
 
+########### subplot Neigung ############
+x_neigung = np.array([-1,0,1])
+winkel_neigung = 0
+y_neigung = np.zeros(len(x_neigung))
+xlim_neigung = [-1, 1]
+ylim_neigung = [-2, 2]
+neigung_plot = data_visual_figure.add_subplot(223)
+Plot_set_axis(neigung_plot,
+              xlim_neigung, ylim_neigung,
+              xlabel='', ylabel='',
+              title='Neigung')
+neigung_plot.tick_params(
+    axis='x',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    bottom=False,      # ticks along the bottom edge are off
+    top=False,         # ticks along the top edge are off
+    labelbottom=False) # labels along the bottom edge are o   labelbottom=False) # labels along the bottom edge are off
+neigung_plot.tick_params(
+    axis='y',          # changes apply to the x-axis
+    which='both',      # both major and minor ticks are affected
+    bottom=False,      # ticks along the bottom edge are off
+    top=False,         # ticks along the top edge are off
+    labelbottom=False) # labels along the bottom edge are o   labelbottom=False) # labels along the bottom edge are off
+
+plot_line_neigung, = Plot_add_line(neigung_plot, x_neigung, y_neigung, 'b-')
+
 #####################################################
 # Main programm loop
 #####################################################
@@ -91,16 +118,19 @@ while True:
         # read data as bytes array from serial device (arduino)
         new_data = np.frombuffer(ser.read(DATA_BODY_START), dtype=np.uint8)
 
-        # update data arrays
+        # update data arrays index:")
         y_JoystickRX[:-1] = y_JoystickRX[1:]
         y_JoystickRX[-1] = int.from_bytes(new_data[0], byteorder=sys.byteorder)
         y_JoystickRY[:-1] = y_JoystickRY[1:]
         y_JoystickRY[-1] = int.from_bytes(new_data[1], byteorder=sys.byteorder)
+        winkel_neigung = y_JoystickRX
+        y_neigung = np.tan(np.deg2rad(winkel_neigung))[0]*x_neigung
     
         # update plot
         axis_plot_text_RX.set_text(text_last_value + str(y_JoystickRX[-1]))
         axis_plot_text_RY.set_text(text_last_value + str(y_JoystickRY[-1]))
         plot_line_RX.set_ydata(y_JoystickRX)
         plot_line_RY.set_ydata(y_JoystickRY)
+        plot_line_neigung.set_ydata(y_neigung)
 
         Plot_figure_update(data_visual_figure)

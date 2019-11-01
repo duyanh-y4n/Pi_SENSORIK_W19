@@ -17,7 +17,8 @@ def Plot_init_figure_monitor(interactive=True):
 
 
 def Plot_figure_update(fig):
-    fig.canvas.draw()
+    # fig.canvas.draw()
+    fig.canvas.update()
     fig.canvas.flush_events()
 
 

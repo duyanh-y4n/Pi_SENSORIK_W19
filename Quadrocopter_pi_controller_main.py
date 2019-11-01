@@ -121,45 +121,56 @@ plot_line_rollen, = Plot_add_line(rollen_plot, x_rollen, y_rollen, 'b-')
 plot_line_RY, = Plot_add_line(axis_plot_RY, x, y_JoystickRY, 'r-')
 plot_line_RX, = Plot_add_line(axis_plot_RX, x, y_JoystickRX, 'r-')
 
+
+def update_plot_data(x, y, z, winkel_neigung, winkel_rollen):
+    global y_neigung, y_rollen, y_JoystickRX, y_JoystickRY
+    axis_plot_text_RX.set_text('last value: ' + str(y_JoystickRX[-1]))
+    axis_plot_text_RY.set_text('last value: ' + str(y_JoystickRY[-1]))
+    neigung_plot_text.set_text('Neigung ' + str(int(winkel_neigung)))
+    rollen_plot_text.set_text('Rollen ' + str(int(winkel_rollen)))
+    plot_line_RX.set_ydata(y_JoystickRX)
+    plot_line_RY.set_ydata(y_JoystickRY)
+    plot_line_neigung.set_ydata(y_neigung)
+    plot_line_rollen.set_ydata(y_rollen)
+    y_JoystickRX[:-1] = y_JoystickRX[1:]
+    y_JoystickRX[-1] = x
+    y_JoystickRY[:-1] = y_JoystickRY[1:]
+    y_JoystickRY[-1] = y
+    y_neigung = np.tan(np.deg2rad(winkel_neigung))*x_neigung
+    y_rollen = np.tan(np.deg2rad(winkel_rollen))*x_rollen
+
+
+
 #####################################################
 # Main programm loop
 #####################################################
 time_current = time.time()*1000
 while True:
     # wait for
-        # read data as bytes array from serial device (arduino)
+    # read data as bytes array from serial device (arduino)
     ser.reset_input_buffer()
     read_data = ser.readline().decode().strip()
     # print(read_data)
     new_data = str(read_data).split(',')
 
     if (len(new_data) > 0) and (new_data[0] == 'data'):
+        # calculate sample time
         sample_time = time.time()*1000 - time_current
+        print("\nSample time: " + str(int(sample_time))+ ' ms')
+
+        print("data [header,x_raw,y_raw,z_raw]")
         print(new_data)
         x_raw = int(new_data[1])
         y_raw = int(new_data[2])
         z_raw = int(new_data[3])
         get_accel_data(x_raw, y_raw, z_raw)
-        winkel_neigung,winkel_rollen = calculate_angle()
-        # update data arrays index:
-        y_JoystickRX[:-1] = y_JoystickRX[1:]
-        y_JoystickRX[-1] = x_raw
-        y_JoystickRY[:-1] = y_JoystickRY[1:]
-        y_JoystickRY[-1] = y_raw
-        y_neigung = np.tan(np.deg2rad(winkel_neigung))*x_neigung
-        y_rollen = np.tan(np.deg2rad(winkel_rollen))*x_rollen
+        winkel_neigung, winkel_rollen = calculate_angle()
+        print("winkel [nicken,rollen]") 
+        print([winkel_neigung, winkel_rollen])
 
-        # update plot
-        axis_plot_text_RX.set_text('last value: ' + str(y_JoystickRX[-1]))
-        axis_plot_text_RY.set_text('last value: ' + str(y_JoystickRY[-1]))
-        neigung_plot_text.set_text('Neigung ' + str(int(winkel_neigung)))
-        rollen_plot_text.set_text('Rollen ' + str(int(winkel_rollen)))
-        plot_line_RX.set_ydata(y_JoystickRX)
-        plot_line_RY.set_ydata(y_JoystickRY)
-        plot_line_neigung.set_ydata(y_neigung)
-        plot_line_rollen.set_ydata(y_rollen)
-
-        print(sample_time)
-        if sample_time>250:
+        update_plot_data(x_raw, y_raw, z_raw, winkel_neigung, winkel_rollen)
+        if sample_time>200:
+            print("update plot")
             Plot_figure_update(data_visual_figure)
+            print("finish at:" + str(time.time()*1000-time_current))
             time_current = time.time()*1000

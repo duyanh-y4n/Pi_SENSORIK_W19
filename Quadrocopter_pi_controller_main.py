@@ -12,6 +12,7 @@ from Quadrocopter_plot import *
 from Quadrocopter_dataframe import *
 import sys
 from Quadrocopter_IMU_data_processor import get_accel_data, calculate_angle
+import time
 
 #####################################################
 # config communication
@@ -34,7 +35,7 @@ y_raw = 0
 z_raw = 0
 
 # datasample
-max_sample_len = 31
+max_sample_len = 100
 x = np.linspace(-max_sample_len+1, 0, max_sample_len)
 x_max = 0
 x_min = -max_sample_len
@@ -63,7 +64,6 @@ axis_plot_text_RX = Plot_add_text(axis_plot_RX,
                                   'last value: ',
                                   'left',
                                   'center')
-plot_line_RX, = Plot_add_line(axis_plot_RX, x, y_JoystickRX, 'r-')
 
 
 ########### subplot Joystick RY ############
@@ -80,7 +80,6 @@ axis_plot_text_RY = Plot_add_text(axis_plot_RY,
                                   'left',
                                   'center')
 
-plot_line_RY, = Plot_add_line(axis_plot_RY, x, y_JoystickRY, 'r-')
 
 ########### subplot Neigung ############
 x_neigung = np.array([-1, 0, 1])
@@ -97,7 +96,6 @@ neigung_plot.axes.get_xaxis().set_visible(False)
 neigung_plot.axes.get_yaxis().set_visible(False)
 neigung_plot_text = Plot_add_text(
     neigung_plot, 0.5, 0.95, 'Neigung', 'center', 'center')
-plot_line_neigung, = Plot_add_line(neigung_plot, x_neigung, y_neigung, 'b-')
 
 
 ########### subplot Rollen ############
@@ -115,11 +113,18 @@ rollen_plot.axes.get_xaxis().set_visible(False)
 rollen_plot.axes.get_yaxis().set_visible(False)
 rollen_plot_text = Plot_add_text(
     rollen_plot, 0.5, 0.95, 'Rollen', 'center', 'center')
+
+# background = data_visual_figure.canvas.copy_from_bbox,#
+
+plot_line_neigung, = Plot_add_line(neigung_plot, x_neigung, y_neigung, 'b-')
 plot_line_rollen, = Plot_add_line(rollen_plot, x_rollen, y_rollen, 'b-')
+plot_line_RY, = Plot_add_line(axis_plot_RY, x, y_JoystickRY, 'r-')
+plot_line_RX, = Plot_add_line(axis_plot_RX, x, y_JoystickRX, 'r-')
 
 #####################################################
 # Main programm loop
 #####################################################
+time_current = time.time()*1000
 while True:
     # wait for
         # read data as bytes array from serial device (arduino)
@@ -129,6 +134,7 @@ while True:
     new_data = str(read_data).split(',')
 
     if (len(new_data) > 0) and (new_data[0] == 'data'):
+        sample_time = time.time()*1000 - time_current
         print(new_data)
         x_raw = int(new_data[1])
         y_raw = int(new_data[2])
@@ -153,4 +159,7 @@ while True:
         plot_line_neigung.set_ydata(y_neigung)
         plot_line_rollen.set_ydata(y_rollen)
 
-        Plot_figure_update(data_visual_figure)
+        print(sample_time)
+        if sample_time>250:
+            Plot_figure_update(data_visual_figure)
+            time_current = time.time()*1000

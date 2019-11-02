@@ -6,7 +6,8 @@
 # Last Modified By: Duy Anh Pham <duyanh.y4n.pham@gmail.com>
 import math
 
-MAX_SPRUNG = 16384
+RESOLUTION = 16384
+MAX_SPRUNG = RESOLUTION*0.02
 x_raw_alt = 0
 y_raw_alt = 0
 z_raw_alt = 0
@@ -36,19 +37,19 @@ def filter_convert_data():
    global ay_g
    global az_g
    if abs(x_raw-x_raw_alt) < MAX_SPRUNG:
-        ax_g = float(x_raw/16384)
+        ax_g = float(x_raw/RESOLUTION)
    else:
-        ax_g = float(x_raw_alt/16384)
+        ax_g = float(x_raw_alt/RESOLUTION)
 
    if abs(y_raw-y_raw_alt) < MAX_SPRUNG:
-        ay_g = float(y_raw/16384)
+        ay_g = float(y_raw/RESOLUTION)
    else:
-        ay_g = float(y_raw_alt/16384)
+        ay_g = float(y_raw_alt/RESOLUTION)
 
    if abs(z_raw-z_raw_alt) < MAX_SPRUNG:
-        az_g = float(z_raw/16384)
+        az_g = float(z_raw/RESOLUTION)
    else:
-        az_g = float(z_raw_alt/16384)
+        az_g = float(z_raw_alt/RESOLUTION)
 
    ax_g = constrain(ax_g, -1, 1)
    ay_g = constrain(ay_g, -1, 1)
@@ -81,6 +82,7 @@ def get_accel_data(x_input, y_input, z_input):
    x_raw_alt = x_raw
    y_raw_alt = y_raw
    z_raw_alt = z_raw
+   return [x_raw, y_raw, z_raw]
 
 
 def calculate_angle():
@@ -93,3 +95,6 @@ def calculate_angle():
    rollen_grad = math.atan2(
         (-ax_g), math.sqrt(ay_g * ay_g + az_g * az_g)) * 57.3
    return nicken_grad, rollen_grad
+
+def get_accel():
+    return [ax_g,ay_g,az_g]

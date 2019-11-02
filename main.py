@@ -6,7 +6,6 @@
 # Last Modified By: Duy Anh Pham <duyanh.y4n.pham@gmail.com>
 
 from pyqtgraph.Qt import QtGui, QtCore
-import numpy as np
 import pyqtgraph as pg
 import numpy as np
 from Quadrocopter_serial import Serial_begin
@@ -42,8 +41,8 @@ x_min = -max_sample_len
 xlim = [x_min, x_max]
 y_JoystickRX = np.zeros(len(x))
 y_JoystickRY = np.zeros(len(x))
-y_max = 16500
-y_min = -16500
+y_max = 20000
+y_min = -20000
 ylim = [y_min, y_max]
 text_align_x = 0.25
 text_align_y = 0.95
@@ -51,6 +50,7 @@ x_rollen = np.array([-1, 0, 1])
 x_neigung = np.array([-1, 0, 1])
 y_neigung = np.zeros(len(x_rollen))
 y_rollen = np.zeros(len(x_rollen))
+data_resolution = 8096
 
 
 #QtGui.QApplication.setGraphicsSystem('raster')
@@ -58,32 +58,64 @@ app = QtGui.QApplication([])
 #mw = QtGui.QMainWindow()
 #mw.resize(800,800)
 
-win = pg.GraphicsWindow(title="Basic plotting examples")
+win = pg.GraphicsWindow(title="Sensorik")
 win.resize(1000,600)
-win.setWindowTitle('pyqtgraph example: Plotting')
+win.setWindowTitle('Quadrocopter Richtung')
 
+# Visualization - Plotsconfiguration
 subplot_RX = win.addPlot(title="RX plot")
 subplot_RX.setYRange(y_min,y_max,padding=0)
+subplot_RX.setLabel('bottom','n. Sample')
+subplot_RX.invertX(True)
+subplot_RX.getAxis('left').setLabel('raw')
+subplot_RX.showAxis('right')
+axis_y_RX = subplot_RX.getAxis('right')
+axis_y_RX.linkToView(subplot_RX.getViewBox())
+axis_y_RX.setScale(1/data_resolution)
+axis_y_RX.setLabel('Beschleunigung', units='g')
 curve_RX = subplot_RX.plot(pen='y')
+
 subplot_RY = win.addPlot(title="RY plot")
 subplot_RY.setYRange(y_min,y_max,padding=0)
+subplot_RY.setLabel('bottom','n. Sample')
+subplot_RY.invertX(True)
+subplot_RY.getAxis('left').setLabel('raw')
+subplot_RY.showAxis('right')
+axis_y_RY = subplot_RY.getAxis('right')
+axis_y_RY.linkToView(subplot_RY.getViewBox())
+axis_y_RY.setScale(1/data_resolution)
+axis_y_RY.setLabel('Beschleunigung', units='g')
 curve_RY = subplot_RY.plot(pen='y')
+
 win.nextRow()
+
 subplot_neigung = win.addPlot(title="Neigung")
-subplot_neigung.setYRange(-1,1,padding=0)
+subplot_neigung.setYRange(-1.2,1.2,padding=0)
 curve_neigung = subplot_neigung.plot(pen='y')
+subplot_neigung.setAspectLocked()
+subplot_neigung.hideAxis('left')
+subplot_neigung.getAxis('left').setScale(45)
+
 subplot_rollen = win.addPlot(title="Rollen")
-subplot_rollen.setYRange(-1,1,padding=0)
+subplot_rollen.setYRange(-1.2,1.2,padding=0)
 curve_rollen = subplot_rollen.plot(pen='y')
+subplot_rollen.setAspectLocked()
+subplot_rollen.hideAxis('left')
+subplot_rollen.getAxis('left').setScale(45)
+
 ptr = 0
 time_current = time.time()*1000
-def update():
+
+
+def update_visualization():
     global curve_RX, curve_RY,curve_neigung,curve_rollen, ptr, subplot_RX,subplot_RY, subplot_neigung, subplot_rollen
-    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, time_current
+    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, time_current, winkel_neigung, winkel_rollen
     curve_RX.setData(y_JoystickRX)
     curve_RY.setData(y_JoystickRY)
     curve_neigung.setData(y_neigung)
     curve_rollen.setData(y_rollen)
+    subplot_neigung.setLabel('left', 'Nickwinkel: ' + str(int(winkel_neigung)))
+    subplot_rollen.setLabel('left', 'Rollwinkel: ' + str(int(winkel_rollen)))
     if ptr == 0:
         subplot_RX.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
         subplot_RY.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
@@ -93,7 +125,7 @@ def update():
 
 
 def get_data():
-    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, time_current
+    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, time_current, winkel_neigung, winkel_rollen
     # wait for
         # read data as bytes array from serial device (arduino)
     ser.reset_input_buffer()
@@ -115,19 +147,20 @@ def get_data():
         print("winkel [nicken,rollen]") 
         print([winkel_neigung, winkel_rollen])
         # update data arrays index:
-        y_JoystickRX[:-1] = y_JoystickRX[1:]
-        y_JoystickRX[-1] = x_raw
-        y_JoystickRY[:-1] = y_JoystickRY[1:]
-        y_JoystickRY[-1] = y_raw
+        y_JoystickRX[1:] = y_JoystickRX[:-1]
+        y_JoystickRX[1] = x_raw
+        y_JoystickRY[1:] = y_JoystickRY[:-1]
+        y_JoystickRY[1] = y_raw
         y_neigung = np.tan(np.deg2rad(winkel_neigung))*x_neigung
         y_rollen = np.tan(np.deg2rad(winkel_rollen))*x_rollen
-        if sample_time>100:
+        if sample_time>50:
             print("update plot")
-            update()
+            update_visualization()
             print("finish at:" + str(time.time()*1000-time_current))
             time_current = time.time()*1000
 
 
+# 
 timer = QtCore.QTimer()
 timer.timeout.connect(get_data)
 timer.start(1)
@@ -140,7 +173,4 @@ if __name__ == '__main__':
     import sys
     if (sys.flags.interactive != 1) or not hasattr(QtCore, 'PYQT_VERSION'):
         QtGui.QApplication.instance().exec_()
-
-while(True):
-    get_data()
 

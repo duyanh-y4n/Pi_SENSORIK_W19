@@ -41,7 +41,6 @@ x_min = -max_sample_len
 xlim = [x_min, x_max]
 y_JoystickRX = np.zeros(len(x))
 y_JoystickRY = np.zeros(len(x))
-y_JoystickRX_gefiltert = np.zeros(len(x))
 y_max = 20000
 y_min = -20000
 ylim = [y_min, y_max]
@@ -51,8 +50,11 @@ x_rollen = np.array([-1, 0, 1])
 x_neigung = np.array([-1, 0, 1])
 y_neigung = np.zeros(len(x_rollen))
 y_rollen = np.zeros(len(x_rollen))
-data_resolution = 8096
-
+y_neigung_filtert = np.zeros(len(x_rollen))
+y_rollen_filtert = np.zeros(len(x_rollen))
+data_resolution = 16384
+winkel_neigung_filtert = 0.0
+winkel_rollen_filtert = 0.0
 
 #QtGui.QApplication.setGraphicsSystem('raster')
 app = QtGui.QApplication([])
@@ -75,35 +77,36 @@ axis_y_RX.linkToView(subplot_RX.getViewBox())
 axis_y_RX.setScale(1/data_resolution)
 axis_y_RX.setLabel('Beschleunigung', units='g')
 curve_RX = subplot_RX.plot(pen='y')
-curve_RX_gefiltert = subplot_RX.plot(pen='r')
 
-# subplot_RY = win.addPlot(title="RY plot")
-# subplot_RY.setYRange(y_min,y_max,padding=0)
-# subplot_RY.setLabel('bottom','n. Sample')
-# subplot_RY.invertX(True)
-# subplot_RY.getAxis('left').setLabel('raw')
-# subplot_RY.showAxis('right')
-# axis_y_RY = subplot_RY.getAxis('right')
-# axis_y_RY.linkToView(subplot_RY.getViewBox())
-# axis_y_RY.setScale(1/data_resolution)
-# axis_y_RY.setLabel('Beschleunigung', units='g')
-# curve_RY = subplot_RY.plot(pen='y')
+subplot_RY = win.addPlot(title="RY plot")
+subplot_RY.setYRange(y_min,y_max,padding=0)
+subplot_RY.setLabel('bottom','n. Sample')
+subplot_RY.invertX(True)
+subplot_RY.getAxis('left').setLabel('raw')
+subplot_RY.showAxis('right')
+axis_y_RY = subplot_RY.getAxis('right')
+axis_y_RY.linkToView(subplot_RY.getViewBox())
+axis_y_RY.setScale(1/data_resolution)
+axis_y_RY.setLabel('Beschleunigung', units='g')
+curve_RY = subplot_RY.plot(pen='y')
 
-# win.nextRow()
+win.nextRow()
 
 subplot_neigung = win.addPlot(title="Neigung")
 subplot_neigung.setYRange(-1.2,1.2,padding=0)
-curve_neigung = subplot_neigung.plot(pen='y')
-subplot_neigung.setAspectLocked()
+curve_neigung = subplot_neigung.plot(pen='r')
+curve_neigung_filtert = subplot_neigung.plot(pen='y')
+# subplot_neigung.setAspectLocked()
 subplot_neigung.hideAxis('left')
 subplot_neigung.getAxis('left').setScale(45)
 
-# subplot_rollen = win.addPlot(title="Rollen")
-# subplot_rollen.setYRange(-1.2,1.2,padding=0)
-# curve_rollen = subplot_rollen.plot(pen='y')
+subplot_rollen = win.addPlot(title="Rollen")
+subplot_rollen.setYRange(-1.2,1.2,padding=0)
+curve_rollen = subplot_rollen.plot(pen='r')
+curve_rollen_filtert = subplot_rollen.plot(pen='y')
 # subplot_rollen.setAspectLocked()
-# subplot_rollen.hideAxis('left')
-# subplot_rollen.getAxis('left').setScale(45)
+subplot_rollen.hideAxis('left')
+subplot_rollen.getAxis('left').setScale(45)
 
 ptr = 0
 time_current = time.time()*1000
@@ -111,25 +114,27 @@ time_current = time.time()*1000
 
 def update_visualization():
     global curve_RX, curve_RY,curve_neigung,curve_rollen, ptr, subplot_RX,subplot_RY, subplot_neigung, subplot_rollen
-    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, time_current, winkel_neigung, winkel_rollen
+    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, y_neigung_filtert, y_rollen_filtert
+    global time_current, winkel_neigung, winkel_rollen, winkel_neigung_filtert, winkel_rollen_filtert
     curve_RX.setData(y_JoystickRX)
-    curve_RX_gefiltert.setData(y_JoystickRX_gefiltert)
-    # curve_RX_gefiltert.setData(np.random.normal(size=100))
-    # curve_RY.setData(y_JoystickRY)
+    curve_RY.setData(y_JoystickRY)
     curve_neigung.setData(y_neigung)
-    # curve_rollen.setData(y_rollen)
+    curve_rollen.setData(y_rollen)
+    curve_neigung_filtert.setData(y_neigung_filtert)
+    curve_rollen_filtert.setData(y_rollen_filtert)
     subplot_neigung.setLabel('left', 'Nickwinkel: ' + str(int(winkel_neigung)))
-    # subplot_rollen.setLabel('left', 'Rollwinkel: ' + str(int(winkel_rollen)))
+    subplot_rollen.setLabel('left', 'Rollwinkel: ' + str(int(winkel_rollen)))
     if ptr == 0:
         subplot_RX.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
-        # subplot_RY.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
+        subplot_RY.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
         subplot_neigung.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
-        # subplot_rollen.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
+        subplot_rollen.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
     ptr += 1
 
 
 def get_data():
-    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, time_current, winkel_neigung, winkel_rollen
+    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, y_neigung_filtert, y_rollen_filtert
+    global time_current, winkel_neigung, winkel_rollen, winkel_neigung_filtert, winkel_rollen_filtert
     # wait for
         # read data as bytes array from serial device (arduino)
     ser.reset_input_buffer()
@@ -147,20 +152,18 @@ def get_data():
         y_raw = int(new_data[2])
         z_raw = int(new_data[3])
         get_accel_data(x_raw, y_raw, z_raw)[0]
-        x_raw_gefiltert = get_accel()[0]*16384
-        print(x_raw_gefiltert)
-        winkel_neigung,winkel_rollen = calculate_angle()
+        winkel_neigung,winkel_rollen, winkel_neigung_filtert,winkel_rollen_filtert = calculate_angle()
         print("winkel [nicken,rollen]") 
         print([winkel_neigung, winkel_rollen])
         # update data arrays index:
         y_JoystickRX[1:] = y_JoystickRX[:-1]
-        y_JoystickRX[1] = x_raw
-        y_JoystickRX_gefiltert[1:] = y_JoystickRX_gefiltert[:-1]
-        y_JoystickRX_gefiltert[1] = x_raw_gefiltert
+        y_JoystickRX[0] = x_raw
         y_JoystickRY[1:] = y_JoystickRY[:-1]
-        y_JoystickRY[1] = y_raw
+        y_JoystickRY[0] = y_raw
         y_neigung = np.tan(np.deg2rad(winkel_neigung))*x_neigung
         y_rollen = np.tan(np.deg2rad(winkel_rollen))*x_rollen
+        y_neigung_filtert = np.tan(np.deg2rad(winkel_neigung_filtert))*x_neigung
+        y_rollen_filtert = np.tan(np.deg2rad(winkel_rollen_filtert))*x_rollen
         if sample_time>50:
             print("update plot")
             update_visualization()

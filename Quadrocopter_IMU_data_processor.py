@@ -19,6 +19,8 @@ ay_g = 0.0
 az_g = 0.0
 nicken_grad = 0.0
 rollen_grad = 0.0
+nicken_grad_gefiltert = 0.0
+rollen_grad_gefiltert = 0.0
 
 
 def constrain(val, min_val, max_val):
@@ -86,15 +88,18 @@ def get_accel_data(x_input, y_input, z_input):
 
 
 def calculate_angle():
-   global nicken_grad
-   global rollen_grad
+   global nicken_grad, nicken_grad_gefiltert
+   global rollen_grad, rollen_grad_gefiltert
    global ax_g
    global ay_g
    global az_g
    nicken_grad = -(math.atan2(ay_g, az_g)*57.3)
    rollen_grad = math.atan2(
         (-ax_g), math.sqrt(ay_g * ay_g + az_g * az_g)) * 57.3
-   return nicken_grad, rollen_grad
+   nicken_grad_gefiltert = constrain(nicken_grad,-45,45)
+   rollen_grad_gefiltert = constrain(rollen_grad,-45,45)
+   return nicken_grad, rollen_grad, nicken_grad_gefiltert, rollen_grad_gefiltert
 
 def get_accel():
     return [ax_g,ay_g,az_g]
+

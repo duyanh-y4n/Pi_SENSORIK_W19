@@ -41,8 +41,8 @@ x_min = -max_sample_len
 xlim = [x_min, x_max]
 y_JoystickRX = np.zeros(len(x))
 y_JoystickRY = np.zeros(len(x))
-y_max = 20000
-y_min = -20000
+y_max = 255
+y_min = -10
 ylim = [y_min, y_max]
 text_align_x = 0.25
 text_align_y = 0.95
@@ -70,11 +70,11 @@ subplot_RX = win.addPlot(title="RX plot")
 subplot_RX.setYRange(y_min,y_max,padding=0)
 subplot_RX.setLabel('bottom','n. Sample')
 subplot_RX.invertX(True)
-subplot_RX.getAxis('left').setLabel('raw')
+subplot_RX.getAxis('left').setLabel('pwm')
 subplot_RX.showAxis('right')
 axis_y_RX = subplot_RX.getAxis('right')
 axis_y_RX.linkToView(subplot_RX.getViewBox())
-axis_y_RX.setScale(1/data_resolution)
+axis_y_RX.setScale(1/255)
 axis_y_RX.setLabel('Beschleunigung', units='g')
 curve_RX = subplot_RX.plot(pen='y')
 
@@ -82,11 +82,11 @@ subplot_RY = win.addPlot(title="RY plot")
 subplot_RY.setYRange(y_min,y_max,padding=0)
 subplot_RY.setLabel('bottom','n. Sample')
 subplot_RY.invertX(True)
-subplot_RY.getAxis('left').setLabel('raw')
+subplot_RY.getAxis('left').setLabel('pwm')
 subplot_RY.showAxis('right')
 axis_y_RY = subplot_RY.getAxis('right')
 axis_y_RY.linkToView(subplot_RY.getViewBox())
-axis_y_RY.setScale(1/data_resolution)
+axis_y_RY.setScale(1/255)
 axis_y_RY.setLabel('Beschleunigung', units='g')
 curve_RY = subplot_RY.plot(pen='y')
 
@@ -116,6 +116,7 @@ def update_visualization():
     global curve_RX, curve_RY,curve_neigung,curve_rollen, ptr, subplot_RX,subplot_RY, subplot_neigung, subplot_rollen
     global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, y_neigung_filtert, y_rollen_filtert
     global time_current, winkel_neigung, winkel_rollen, winkel_neigung_filtert, winkel_rollen_filtert
+    global RXPWM, RYPWM
     curve_RX.setData(y_JoystickRX)
     curve_RY.setData(y_JoystickRY)
     curve_neigung.setData(y_neigung)
@@ -135,6 +136,11 @@ def update_visualization():
 def get_data():
     global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, y_neigung_filtert, y_rollen_filtert
     global time_current, winkel_neigung, winkel_rollen, winkel_neigung_filtert, winkel_rollen_filtert
+    global pwm_rx, pwm_ry, pwm_max, pwm_min, winkel_max, winkel_min
+    pwm_min = 0
+    pwm_max = 255
+    winkel_min = -45
+    winkel_max = 45
     # wait for
         # read data as bytes array from serial device (arduino)
     ser.reset_input_buffer()
@@ -145,7 +151,6 @@ def get_data():
     if (len(new_data) > 0) and (new_data[0] == 'data'):
         sample_time = time.time()*1000 - time_current
         print("\nSample time: " + str(int(sample_time))+ ' ms')
-
         print("data [header,x_raw,y_raw,z_raw]")
         print(new_data)
         x_raw = int(new_data[1])
@@ -153,22 +158,31 @@ def get_data():
         z_raw = int(new_data[3])
         get_accel_data(x_raw, y_raw, z_raw)[0]
         winkel_neigung,winkel_rollen, winkel_neigung_filtert,winkel_rollen_filtert = calculate_angle()
+        pwm_rx = (winkel_rollen_filtert-winkel_min)*(pwm_max-pwm_min)/(winkel_max-winkel_min)+pwm_min
+        pwm_ry = (winkel_neigung_filtert-winkel_min)*(pwm_max-pwm_min)/(winkel_max-winkel_min)+pwm_min
+        global send_sting 
+        send_string = str(pwm_rx) + "X" + str(pwm_ry) + "YE"
+        ser.write(send_string.encode("utf-8"))
+        
         print("winkel [nicken,rollen]") 
         print([winkel_neigung, winkel_rollen])
         # update data arrays index:
         y_JoystickRX[1:] = y_JoystickRX[:-1]
-        y_JoystickRX[0] = x_raw
+        y_JoystickRX[0] = pwm_rx
         y_JoystickRY[1:] = y_JoystickRY[:-1]
-        y_JoystickRY[0] = y_raw
+        y_JoystickRY[0] = pwm_ry
         y_neigung = np.tan(np.deg2rad(winkel_neigung))*x_neigung
         y_rollen = np.tan(np.deg2rad(winkel_rollen))*x_rollen
         y_neigung_filtert = np.tan(np.deg2rad(winkel_neigung_filtert))*x_neigung
         y_rollen_filtert = np.tan(np.deg2rad(winkel_rollen_filtert))*x_rollen
-        if sample_time>50:
+        if True:
             print("update plot")
             update_visualization()
             print("finish at:" + str(time.time()*1000-time_current))
             time_current = time.time()*1000
+
+
+
 
 
 # 

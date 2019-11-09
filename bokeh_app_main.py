@@ -12,6 +12,7 @@ import time
 
 from bokeh.models import ColumnDataSource
 from bokeh.plotting import curdoc, figure
+from bokeh.layouts import gridplot
 from tornado import gen
 
 from Quadrocopter_serial import Serial_begin
@@ -57,6 +58,7 @@ data_resolution = 16384
 winkel_neigung_filtert = 0.0
 winkel_rollen_filtert = 0.0
 time_current = time.time()*1000
+time_start_app = time.time()*1000
 
 def get_data():
     global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, y_neigung_filtert, y_rollen_filtert
@@ -101,33 +103,47 @@ def get_data():
         y_neigung_filtert = np.tan(np.deg2rad(winkel_neigung_filtert))*x_neigung
         y_rollen_filtert = np.tan(np.deg2rad(winkel_rollen_filtert))*x_rollen
         time_current = time.time()*1000
+        return pwm_rx, pwm_ry
 
+################ define datasource for visualization ####################
 # this must only be modified from a Bokeh session callback
-source = ColumnDataSource(data=dict(x=[0], y=[0]))
+source1 = ColumnDataSource(data=dict(x=[0], y=[0]))
+source2 = ColumnDataSource(data=dict(x=[0], y=[0]))
 
 # This is important! Save curdoc() to make sure all threads
 # see the same document.
 doc = curdoc()
 
+###################### define tasks ##################
+# updae visualisation
 @gen.coroutine
-def update(x, y):
-    time.sleep(0.1)
-    source.stream(dict(x=[x], y=[y]))
+def update(x, y1, y2):
+    # time.sleep(0.01)
+    source1.stream(dict(x=[x], y=[y1]), rollover=30)
+    source2.stream(dict(x=[x], y=[y2]), rollover=30)
 
+# get data + filter data
 def blocking_task():
     while True:
         # do some blocking computation
         # time.sleep(0.1)
-        x, y = random(), random()
-        get_data()
+        y1, y2 = get_data()
+        x = int((time.time()*1000-time_start_app))
+        print("gettime" + str(x))
 
         # but update the document from callback
-        doc.add_next_tick_callback(partial(update, x=x, y=y))
+        doc.add_next_tick_callback(partial(update, x=x, y1=y1, y2=y2))
 
-p = figure(x_range=[0, 1], y_range=[0,1])
-l = p.line(x='x', y='y', source=source)
 
-doc.add_root(p)
+##################### configure plots ##################
+p1 = figure(title="Nicken", x_axis_label="time in ms")
+l1 = p1.line(x='x', y='y', source=source1)
+p2 = figure(title="Rollen", x_axis_label="time in ms")
+l2 = p2.line(x='x', y='y', source=source2)
 
+grid = gridplot([[p1,p2]],plot_height=250,plot_width=250)
+doc.add_root(grid)
+
+################# start programm with defined task #################
 thread = Thread(target=blocking_task)
 thread.start()

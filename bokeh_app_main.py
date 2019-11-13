@@ -48,12 +48,6 @@ y_min = -10
 ylim = [y_min, y_max]
 text_align_x = 0.25
 text_align_y = 0.95
-x_rollen = np.array([-1, 0, 1])
-x_neigung = np.array([-1, 0, 1])
-y_neigung = np.zeros(len(x_rollen))
-y_rollen = np.zeros(len(x_rollen))
-y_neigung_filtert = np.zeros(len(x_rollen))
-y_rollen_filtert = np.zeros(len(x_rollen))
 data_resolution = 16384
 winkel_neigung_filtert = 0.0
 winkel_rollen_filtert = 0.0
@@ -88,7 +82,7 @@ def get_data():
         x_raw = int(new_data[1])
         y_raw = int(new_data[2])
         z_raw = int(new_data[3])
-        get_accel_data(x_raw, y_raw, z_raw)[0]
+        get_accel_data(x_raw, y_raw, z_raw)
         winkel_neigung, winkel_rollen, winkel_neigung_filtert, winkel_rollen_filtert = calculate_angle()
         pwm_rx = (winkel_rollen_filtert-winkel_min) * \
             (pwm_max-pwm_min)/(winkel_max-winkel_min)+pwm_min
@@ -100,18 +94,8 @@ def get_data():
 
         print("winkel [nicken,rollen]")
         print([winkel_neigung, winkel_rollen])
-        # update data arrays index:
-        y_JoystickRX[1:] = y_JoystickRX[:-1]
-        y_JoystickRX[0] = pwm_rx
-        y_JoystickRY[1:] = y_JoystickRY[:-1]
-        y_JoystickRY[0] = pwm_ry
-        y_neigung = np.tan(np.deg2rad(winkel_neigung))*x_neigung
-        y_rollen = np.tan(np.deg2rad(winkel_rollen))*x_rollen
-        y_neigung_filtert = np.tan(np.deg2rad(
-            winkel_neigung_filtert))*x_neigung
-        y_rollen_filtert = np.tan(np.deg2rad(winkel_rollen_filtert))*x_rollen
         time_current = time.time()*1000
-        return pwm_rx, pwm_ry
+        return pwm_rx, pwm_ry, winkel_neigung, winkel_rollen
 
 
 #####################################################
@@ -122,6 +106,8 @@ def get_data():
 # this must only be modified from a Bokeh session callback
 source1 = ColumnDataSource(data=dict(x=[0], y=[0]))
 source2 = ColumnDataSource(data=dict(x=[0], y=[0]))
+source3 = ColumnDataSource(data=dict(x=[0], y=[0]))
+source4 = ColumnDataSource(data=dict(x=[0], y=[0]))
 
 # This is important! Save curdoc() to make sure all threads
 # see the same document.
@@ -140,10 +126,23 @@ l2 = p2.line(x='x', y='y', source=source2)
 title2 = Title(text="Rollen", align="center")
 p2.add_layout(title2, "above")
 value2 = Title(text="", align="center")
-p2.add_layout(value1, "left")
+p2.add_layout(value2, "left")
 
-# grid = gridplot([[p1, p2]], plot_height=250, plot_width=250)
-grid = gridplot([[p1, p2]], sizing_mode='stretch_both')
+p3 = figure(x_axis_label="time in ms")
+l3 = p3.line(x='x', y='y', source=source3)
+title3 = Title(text="Nickwinkel", align="center")
+p3.add_layout(title3, "above")
+value3 = Title(text="", align="center")
+p3.add_layout(value3, "left")
+
+p4 = figure(x_axis_label="time in ms")
+l4 = p4.line(x='x', y='y', source=source4)
+title4 = Title(text="Rollwinkel", align="center")
+p4.add_layout(title4, "above")
+value4 = Title(text="", align="center")
+p4.add_layout(value4, "left")
+
+grid = gridplot([[p1, p2], [p3, p4]], sizing_mode='stretch_both')
 doc.add_root(grid)
 
 
@@ -153,12 +152,19 @@ doc.add_root(grid)
 ###################### define tasks ##################
 # updae visualisation
 @gen.coroutine
-def update(x, y1, y2):
-    global value1,value2
+def update(x, y1, y2, y3, y4):
+    global value1,value2, value3, value4
     value1.text = str(int(y1))
-    value2.text = str(int(y2))
     source1.stream(dict(x=[x], y=[y1]), rollover=50)
+
+    value2.text = str(int(y2))
     source2.stream(dict(x=[x], y=[y2]), rollover=50)
+
+    value3.text = str(int(y3))
+    source3.stream(dict(x=[x], y=[y3]), rollover=50)
+
+    value4.text = str(int(y4))
+    source4.stream(dict(x=[x], y=[y4]), rollover=50)
 
 # get data + filter data
 
@@ -166,12 +172,12 @@ def update(x, y1, y2):
 def blocking_task():
     while True:
         # do some blocking computation
-        y1, y2 = get_data()
+        y1, y2, y3, y4 = get_data()
         x = int((time.time()*1000-time_start_app))
         print("run time" + str(x))
 
         # but update the document from callback
-        doc.add_next_tick_callback(partial(update, x=x, y1=y1, y2=y2))
+        doc.add_next_tick_callback(partial(update, x=x, y1=y1, y2=y2, y3=y3, y4=y4))
 
 
 ################# start programm with defined task #################

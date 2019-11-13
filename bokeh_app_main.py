@@ -114,35 +114,49 @@ source4 = ColumnDataSource(data=dict(x=[0], y=[0]))
 doc = curdoc()
 
 ##################### configure plots ##################
-p1 = figure(x_axis_label="time in ms")
+p1 = figure(x_axis_label="time in ms", output_backend="webgl",
+        y_range=(y_min, y_max))
 l1 = p1.line(x='x', y='y', source=source1)
 title1 = Title(text="Nicken", align="center")
 p1.add_layout(title1, "above")
 value1 = Title(text="", align="center")
 p1.add_layout(value1, "left")
 
-p2 = figure(x_axis_label="time in ms")
+p2 = figure(x_axis_label="time in ms", output_backend="webgl",
+        y_range=(y_min, y_max))
 l2 = p2.line(x='x', y='y', source=source2)
 title2 = Title(text="Rollen", align="center")
 p2.add_layout(title2, "above")
 value2 = Title(text="", align="center")
 p2.add_layout(value2, "left")
 
-p3 = figure(x_axis_label="time in ms")
+p3 = figure(x_axis_label="time in ms", output_backend="webgl",
+        y_range=(-180, 180))
 l3 = p3.line(x='x', y='y', source=source3)
 title3 = Title(text="Nickwinkel", align="center")
 p3.add_layout(title3, "above")
 value3 = Title(text="", align="center")
 p3.add_layout(value3, "left")
 
-p4 = figure(x_axis_label="time in ms")
+p4 = figure(x_axis_label="time in ms", output_backend="webgl",
+        y_range=(-180, 180))
 l4 = p4.line(x='x', y='y', source=source4)
 title4 = Title(text="Rollwinkel", align="center")
 p4.add_layout(title4, "above")
 value4 = Title(text="", align="center")
 p4.add_layout(value4, "left")
 
-grid = gridplot([[p1, p2], [p3, p4]], sizing_mode='stretch_both')
+# disable x axis
+x_axes = [p1.xaxis,p2.xaxis,p3.xaxis,p4.xaxis]
+for x_axis in x_axes:
+    x_axis.minor_tick_line_color = None
+    x_axis.major_label_text_font_size = '0pt'
+    x_axis.major_tick_line_color = None
+    x_axis.axis_label = None
+    pass
+
+# grid = gridplot([[p1, p2], [p3, p4]], sizing_mode='stretch_both')
+grid = gridplot([[p1, p2], [p3, p4]], plot_height=300, plot_width=480) # pi LCD Resolution
 doc.add_root(grid)
 
 
@@ -154,16 +168,16 @@ doc.add_root(grid)
 @gen.coroutine
 def update(x, y1, y2, y3, y4):
     global value1,value2, value3, value4
-    value1.text = str(int(y1))
+    # value1.text = str(int(y1))
     source1.stream(dict(x=[x], y=[y1]), rollover=50)
 
-    value2.text = str(int(y2))
+    # value2.text = str(int(y2))
     source2.stream(dict(x=[x], y=[y2]), rollover=50)
 
-    value3.text = str(int(y3))
+    # value3.text = str(int(y3))
     source3.stream(dict(x=[x], y=[y3]), rollover=50)
 
-    value4.text = str(int(y4))
+    # value4.text = str(int(y4))
     source4.stream(dict(x=[x], y=[y4]), rollover=50)
 
 # get data + filter data

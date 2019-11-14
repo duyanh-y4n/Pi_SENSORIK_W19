@@ -50,11 +50,11 @@ x_rollen = np.array([-1, 0, 1])
 x_neigung = np.array([-1, 0, 1])
 y_neigung = np.zeros(len(x_rollen))
 y_rollen = np.zeros(len(x_rollen))
-y_neigung_filtert = np.zeros(len(x_rollen))
-y_rollen_filtert = np.zeros(len(x_rollen))
+y_neigung_gefiltert = np.zeros(len(x_rollen))
+y_rollen_gefiltert = np.zeros(len(x_rollen))
 data_resolution = 16384
-winkel_neigung_filtert = 0.0
-winkel_rollen_filtert = 0.0
+winkel_neigung_gefiltert = 0.0
+winkel_rollen_gefiltert = 0.0
 
 #QtGui.QApplication.setGraphicsSystem('raster')
 app = QtGui.QApplication([])
@@ -65,7 +65,8 @@ win = pg.GraphicsWindow(title="Sensorik")
 win.resize(1000,600)
 win.setWindowTitle('Quadrocopter Richtung')
 
-# Visualization - Plotsconfiguration
+######### Visualization - Plotsconfiguration ###########
+# Nicken Plot
 subplot_RX = win.addPlot(title="RX plot")
 subplot_RX.setYRange(y_min,y_max,padding=0)
 subplot_RX.setLabel('bottom','n. Sample')
@@ -78,6 +79,7 @@ axis_y_RX.setScale(1/255)
 axis_y_RX.setLabel('Beschleunigung', units='g')
 curve_RX = subplot_RX.plot(pen='y')
 
+# Rollen Plot
 subplot_RY = win.addPlot(title="RY plot")
 subplot_RY.setYRange(y_min,y_max,padding=0)
 subplot_RY.setLabel('bottom','n. Sample')
@@ -92,18 +94,20 @@ curve_RY = subplot_RY.plot(pen='y')
 
 win.nextRow()
 
+# Nickwinkel Plot
 subplot_neigung = win.addPlot(title="Neigung")
 subplot_neigung.setYRange(-1.2,1.2,padding=0)
 curve_neigung = subplot_neigung.plot(pen='r')
-curve_neigung_filtert = subplot_neigung.plot(pen='y')
+curve_neigung_gefiltert = subplot_neigung.plot(pen='y')
 # subplot_neigung.setAspectLocked()
 subplot_neigung.hideAxis('left')
 subplot_neigung.getAxis('left').setScale(45)
 
+# Rollwinkel Plot
 subplot_rollen = win.addPlot(title="Rollen")
 subplot_rollen.setYRange(-1.2,1.2,padding=0)
 curve_rollen = subplot_rollen.plot(pen='r')
-curve_rollen_filtert = subplot_rollen.plot(pen='y')
+curve_rollen_gefiltert = subplot_rollen.plot(pen='y')
 # subplot_rollen.setAspectLocked()
 subplot_rollen.hideAxis('left')
 subplot_rollen.getAxis('left').setScale(45)
@@ -114,15 +118,14 @@ time_current = time.time()*1000
 
 def update_visualization():
     global curve_RX, curve_RY,curve_neigung,curve_rollen, ptr, subplot_RX,subplot_RY, subplot_neigung, subplot_rollen
-    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, y_neigung_filtert, y_rollen_filtert
-    global time_current, winkel_neigung, winkel_rollen, winkel_neigung_filtert, winkel_rollen_filtert
-    global RXPWM, RYPWM
+    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, y_neigung_gefiltert, y_rollen_gefiltert
+    global winkel_neigung, winkel_rollen, winkel_neigung_gefiltert, winkel_rollen_gefiltert
     curve_RX.setData(y_JoystickRX)
     curve_RY.setData(y_JoystickRY)
     curve_neigung.setData(y_neigung)
     curve_rollen.setData(y_rollen)
-    curve_neigung_filtert.setData(y_neigung_filtert)
-    curve_rollen_filtert.setData(y_rollen_filtert)
+    curve_neigung_gefiltert.setData(y_neigung_gefiltert)
+    curve_rollen_gefiltert.setData(y_rollen_gefiltert)
     subplot_neigung.setLabel('left', 'Nickwinkel: ' + str(int(winkel_neigung)))
     subplot_rollen.setLabel('left', 'Rollwinkel: ' + str(int(winkel_rollen)))
     if ptr == 0:
@@ -134,61 +137,69 @@ def update_visualization():
 
 
 def get_data():
-    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, y_neigung_filtert, y_rollen_filtert
-    global time_current, winkel_neigung, winkel_rollen, winkel_neigung_filtert, winkel_rollen_filtert
+    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, y_neigung_gefiltert, y_rollen_gefiltert
+    global time_current, winkel_neigung, winkel_rollen, winkel_neigung_gefiltert, winkel_rollen_gefiltert
     global pwm_rx, pwm_ry, pwm_max, pwm_min, winkel_max, winkel_min
     pwm_min = 0
     pwm_max = 255
     winkel_min = -45
     winkel_max = 45
-    # wait for
-        # read data as bytes array from serial device (arduino)
+    # read data as bytes array from serial device (arduino)
     ser.reset_input_buffer()
     read_data = ser.readline().decode().strip()
     # print(read_data)
     new_data = str(read_data).split(',')
 
+    # check if data is valid
     if (len(new_data) > 0) and (new_data[0] == 'data'):
         sample_time = time.time()*1000 - time_current
         print("\nSample time: " + str(int(sample_time))+ ' ms')
         print("data [header,x_raw,y_raw,z_raw]")
         print(new_data)
+
+        # save received data and filter
         x_raw = int(new_data[1])
         y_raw = int(new_data[2])
         z_raw = int(new_data[3])
-        get_accel_data(x_raw, y_raw, z_raw)[0]
-        winkel_neigung,winkel_rollen, winkel_neigung_filtert,winkel_rollen_filtert = calculate_angle()
-        pwm_rx = (winkel_rollen_filtert-winkel_min)*(pwm_max-pwm_min)/(winkel_max-winkel_min)+pwm_min
-        pwm_ry = (winkel_neigung_filtert-winkel_min)*(pwm_max-pwm_min)/(winkel_max-winkel_min)+pwm_min
-        global send_sting 
+        get_accel_data(x_raw, y_raw, z_raw)
+        winkel_neigung,winkel_rollen, winkel_neigung_gefiltert,winkel_rollen_gefiltert = calculate_angle()
+        pwm_rx = (winkel_rollen_gefiltert-winkel_min)*(pwm_max-pwm_min)/(winkel_max-winkel_min)+pwm_min
+        pwm_ry = (winkel_neigung_gefiltert-winkel_min)*(pwm_max-pwm_min)/(winkel_max-winkel_min)+pwm_min
+
+        # send data back to arduino
         send_string = str(pwm_rx) + "X" + str(pwm_ry) + "YE"
         ser.write(send_string.encode("utf-8"))
         
         print("winkel [nicken,rollen]") 
         print([winkel_neigung, winkel_rollen])
-        # update data arrays index:
+        # update data source for visualisation
         y_JoystickRX[1:] = y_JoystickRX[:-1]
         y_JoystickRX[0] = pwm_rx
         y_JoystickRY[1:] = y_JoystickRY[:-1]
         y_JoystickRY[0] = pwm_ry
         y_neigung = np.tan(np.deg2rad(winkel_neigung))*x_neigung
         y_rollen = np.tan(np.deg2rad(winkel_rollen))*x_rollen
-        y_neigung_filtert = np.tan(np.deg2rad(winkel_neigung_filtert))*x_neigung
-        y_rollen_filtert = np.tan(np.deg2rad(winkel_rollen_filtert))*x_rollen
-        if True:
-            print("update plot")
-            update_visualization()
-            print("finish at:" + str(time.time()*1000-time_current))
-            time_current = time.time()*1000
+        y_neigung_gefiltert = np.tan(np.deg2rad(winkel_neigung_gefiltert))*x_neigung
+        y_rollen_gefiltert = np.tan(np.deg2rad(winkel_rollen_gefiltert))*x_rollen
 
 
-
+###################################################################
+# main program = infinitive loop
+###################################################################
+def main():
+    global time_current
+    get_data()
+    update_visualization()
+    print("update plot")
+    update_visualization()
+    print("finish at:" + str(time.time()*1000-time_current))
+    time_current = time.time()*1000
 
 
 # 
 timer = QtCore.QTimer()
-timer.timeout.connect(get_data)
-timer.start(1)
+timer.timeout.connect(main)
+timer.start(0)
 
 # Enable antialiasing for prettier plots
 pg.setConfigOptions(antialias=True)

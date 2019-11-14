@@ -62,7 +62,7 @@ app = QtGui.QApplication([])
 #mw.resize(800,800)
 
 win = pg.GraphicsWindow(title="Sensorik")
-win.resize(1000,600)
+win.resize(640,480)
 win.setWindowTitle('Quadrocopter Richtung')
 
 ######### Visualization - Plotsconfiguration ###########
@@ -138,7 +138,8 @@ def update_visualization():
 
 def get_data():
     global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, y_neigung_gefiltert, y_rollen_gefiltert
-    global time_current, winkel_neigung, winkel_rollen, winkel_neigung_gefiltert, winkel_rollen_gefiltert
+    global time_current, sample_time
+    global winkel_neigung, winkel_rollen, winkel_neigung_gefiltert, winkel_rollen_gefiltert
     global pwm_rx, pwm_ry, pwm_max, pwm_min, winkel_max, winkel_min
     pwm_min = 0
     pwm_max = 255
@@ -186,14 +187,16 @@ def get_data():
 ###################################################################
 # main program = infinitive loop
 ###################################################################
+viz_update_interval = 100
 def main():
-    global time_current
+    global time_current, sample_time
     get_data()
-    update_visualization()
-    print("update plot")
-    update_visualization()
-    print("finish at:" + str(time.time()*1000-time_current))
-    time_current = time.time()*1000
+    if sample_time > viz_update_interval:
+        update_visualization()
+        print("update plot")
+        update_visualization()
+        print("finish at:" + str(time.time()*1000-time_current))
+        time_current = time.time()*1000
 
 
 # 

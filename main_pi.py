@@ -135,16 +135,18 @@ def update_visualization():
         subplot_rollen.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
     ptr += 1
 
-
+can_update_viz = False
 def get_data():
     global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, y_neigung_gefiltert, y_rollen_gefiltert
     global time_current, sample_time
     global winkel_neigung, winkel_rollen, winkel_neigung_gefiltert, winkel_rollen_gefiltert
     global pwm_rx, pwm_ry, pwm_max, pwm_min, winkel_max, winkel_min
+    global can_update_viz
     pwm_min = 0
     pwm_max = 255
     winkel_min = -45
     winkel_max = 45
+    can_update_viz=False
     # read data as bytes array from serial device (arduino)
     ser.reset_input_buffer()
     read_data = ser.readline().decode().strip()
@@ -182,6 +184,7 @@ def get_data():
         y_rollen = np.tan(np.deg2rad(winkel_rollen))*x_rollen
         y_neigung_gefiltert = np.tan(np.deg2rad(winkel_neigung_gefiltert))*x_neigung
         y_rollen_gefiltert = np.tan(np.deg2rad(winkel_rollen_gefiltert))*x_rollen
+        can_update_viz = True
 
 
 ###################################################################
@@ -191,8 +194,7 @@ viz_update_interval = 100
 def main():
     global time_current, sample_time
     get_data()
-    if sample_time > viz_update_interval:
-        update_visualization()
+    if sample_time > viz_update_interval and can_update_viz:
         print("update plot")
         update_visualization()
         print("finish at:" + str(time.time()*1000-time_current))

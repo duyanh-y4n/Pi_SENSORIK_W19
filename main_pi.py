@@ -33,7 +33,7 @@ x_raw = 0
 y_raw = 0
 z_raw = 0
 
-# datasample
+# datasample - create wrapper for datasource of visualisation
 max_sample_len = 100
 x = np.linspace(-max_sample_len+1, 0, max_sample_len)
 x_max = 0
@@ -114,6 +114,7 @@ subplot_rollen.getAxis('left').setScale(45)
 
 ptr = 0
 time_current = time.time()*1000
+sample_time = time.time()*1000
 
 
 def update_visualization():
@@ -126,8 +127,6 @@ def update_visualization():
     curve_rollen.setData(y_rollen)
     curve_neigung_gefiltert.setData(y_neigung_gefiltert)
     curve_rollen_gefiltert.setData(y_rollen_gefiltert)
-    subplot_neigung.setLabel('left', 'Nickwinkel: ' + str(int(winkel_neigung)))
-    subplot_rollen.setLabel('left', 'Rollwinkel: ' + str(int(winkel_rollen)))
     if ptr == 0:
         subplot_RX.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
         subplot_RY.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
@@ -194,6 +193,8 @@ viz_update_interval = 100
 def main():
     global time_current, sample_time
     get_data()
+    # not call update_visualization directly to raise performance
+    # and to reduce latency
     if sample_time > viz_update_interval and can_update_viz:
         print("update plot")
         update_visualization()
@@ -204,10 +205,10 @@ def main():
 # 
 timer = QtCore.QTimer()
 timer.timeout.connect(main)
-timer.start(0)
+timer.start(1)
 
 # Enable antialiasing for prettier plots
-pg.setConfigOptions(antialias=True)
+# pg.setConfigOptions(antialias=True)
 
 ## Start Qt event loop unless running in interactive mode or using pyside.
 if __name__ == '__main__':

@@ -209,12 +209,12 @@ def get_data():
         y_neigung_gefiltert = np.tan(np.deg2rad(winkel_neigung_gefiltert))*x_neigung
         y_rollen_gefiltert = np.tan(np.deg2rad(winkel_rollen_gefiltert))*x_rollen
        
-        rx_glatt = FIR.filtertest(y_JoystickRX[0:5])
+        rx_glatt = FIR.filtertest(y_JoystickRX[0:10])
         print("glatt")
         print(rx_glatt)
         print("raw")
         print(y_JoystickRX[0])
-        ry_glatt = FIR.filtertest(y_JoystickRY[0:5])
+        ry_glatt = FIR.filtertest(y_JoystickRY[0:10])
         y_JoystickRX_gefiltert[1:] = y_JoystickRX_gefiltert[:-1]
         y_JoystickRX_gefiltert[0] = rx_glatt[-1]
 

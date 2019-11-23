@@ -71,9 +71,11 @@ win = pg.GraphicsWindow(title="Sensorik")
 # win.resize(640,480)
 win.setWindowTitle('Quadrocopter Richtung')
 RealtimeCheckBox = QtGui.QCheckBox('Stop Realtime Plot')
+button = QtGui.QPushButton("Messung aufnehmen")
 layout = pg.LayoutWidget()
-layout.addWidget(win, row=1, col=0)
+layout.addWidget(win, row=1, col=0, colspan=2)
 layout.addWidget(RealtimeCheckBox, row=0, col=0)
+layout.addWidget(button, row=0, col=1)
 layout.show()
 
 ######### Visualization - Plotsconfiguration ###########
@@ -153,6 +155,8 @@ def update_visualization():
         # subplot_rollen.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
     ptr += 1
 
+button.clicked.connect(update_visualization)
+
 can_update_viz = False
 def get_data():
     global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, y_neigung_gefiltert, y_rollen_gefiltert
@@ -230,11 +234,11 @@ def main():
     get_data()
     # not call update_visualization directly to raise performance
     # and to reduce latency
-    if sample_time > viz_update_interval and can_update_viz and RealtimeCheckBox.isChecked()==False:
-        print("update plot")
-        update_visualization()
-        print("finish at:" + str(time.time()*1000-time_current))
-        time_current = time.time()*1000
+    # if sample_time > viz_update_interval and can_update_viz and RealtimeCheckBox.isChecked()==False:
+        # print("update plot")
+        # update_visualization()
+        # print("finish at:" + str(time.time()*1000-time_current))
+        # time_current = time.time()*1000
 
 
 # 

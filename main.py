@@ -51,6 +51,7 @@ x_neigung = np.array([-1, 0, 1])
 y_neigung = np.zeros(len(x_rollen))
 y_rollen = np.zeros(len(x_rollen))
 data_resolution = 8096
+sample_time = np.zeros(len(x))
 
 
 #QtGui.QApplication.setGraphicsSystem('raster')
@@ -88,7 +89,7 @@ axis_y_RY.setLabel('Beschleunigung', units='g')
 curve_RY = subplot_RY.plot(pen='y')
 
 win.nextRow()
-
+c8181d2b98997205bb188a64812d76178cd557d9
 subplot_neigung = win.addPlot(title="Neigung")
 subplot_neigung.setYRange(-1.2,1.2,padding=0)
 curve_neigung = subplot_neigung.plot(pen='y')
@@ -104,12 +105,14 @@ subplot_rollen.hideAxis('left')
 subplot_rollen.getAxis('left').setScale(45)
 
 ptr = 0
+time_start = time.time()*1000
 time_current = time.time()*1000
 
 
 def update_visualization():
     global curve_RX, curve_RY,curve_neigung,curve_rollen, ptr, subplot_RX,subplot_RY, subplot_neigung, subplot_rollen
-    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, time_current, winkel_neigung, winkel_rollen
+    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, winkel_neigung, winkel_rollen
+    global time_current, time_start, sample_time
     curve_RX.setData(y_JoystickRX)
     curve_RY.setData(y_JoystickRY)
     curve_neigung.setData(y_neigung)
@@ -125,7 +128,8 @@ def update_visualization():
 
 
 def get_data():
-    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, time_current, winkel_neigung, winkel_rollen
+    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen,  winkel_neigung, winkel_rollen
+    global time_current, time_start sample_time
     # wait for
         # read data as bytes array from serial device (arduino)
     ser.reset_input_buffer()
@@ -134,7 +138,7 @@ def get_data():
     new_data = str(read_data).split(',')
 
     if (len(new_data) > 0) and (new_data[0] == 'data'):
-        sample_time = time.time()*1000 - time_current
+        time_current = time.time()*1000 - time_start
         print("\nSample time: " + str(int(sample_time))+ ' ms')
 
         print("data [header,x_raw,y_raw,z_raw]")

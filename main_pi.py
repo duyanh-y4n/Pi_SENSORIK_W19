@@ -47,20 +47,13 @@ y_JoystickRX = np.zeros(len(x))
 y_JoystickRX_gefiltert = np.zeros(len(x))
 y_JoystickRY = np.zeros(len(x))
 y_JoystickRY_gefiltert = np.zeros(len(x))
+sample_time = np.zeros(len(x))
 y_max = 255
 y_min = -10
 ylim = [y_min, y_max]
 text_align_x = 0.25
 text_align_y = 0.95
-x_rollen = np.array([-1, 0, 1])
-x_neigung = np.array([-1, 0, 1])
-y_neigung = np.zeros(len(x_rollen))
-y_rollen = np.zeros(len(x_rollen))
-y_neigung_gefiltert = np.zeros(len(x_rollen))
-y_rollen_gefiltert = np.zeros(len(x_rollen))
 data_resolution = 16384
-winkel_neigung_gefiltert = 0.0
-winkel_rollen_gefiltert = 0.0
 
 #QtGui.QApplication.setGraphicsSystem('raster')
 app = QtGui.QApplication([])
@@ -82,7 +75,7 @@ layout.show()
 # Nicken Plot
 subplot_RX = win.addPlot(title="RX plot")
 subplot_RX.setYRange(y_min,y_max,padding=0)
-subplot_RX.setLabel('bottom','n. Sample')
+subplot_RX.getAxis('bottom').setLabel('n. Sample - Total sample time: ')
 subplot_RX.invertX(True)
 subplot_RX.getAxis('left').setLabel('pwm')
 subplot_RX.showAxis('right')
@@ -90,8 +83,8 @@ axis_y_RX = subplot_RX.getAxis('right')
 axis_y_RX.linkToView(subplot_RX.getViewBox())
 axis_y_RX.setScale(1/255)
 axis_y_RX.setLabel('Beschleunigung', units='g')
-curve_RX = subplot_RX.plot(pen='y')
-curve_RX_gefiltert = subplot_RX.plot(pen='m')
+curve_RX = subplot_RX.plot(pen='y', name='raw')
+curve_RX_gefiltert = subplot_RX.plot(pen='m', name='filtered')
 
 """
 win.nextRow()
@@ -110,8 +103,8 @@ curve_RY = subplot_RY.plot(pen='y')
 """
 
 ptr = 0
-time_current = time.time()*1000
-sample_time = time.time()*1000
+time_start = time.time()*1000
+time_current = time.time()*1000 - time_start
 
 
 def update_visualization():
@@ -120,10 +113,14 @@ def update_visualization():
     global y_JoystickRX_gefiltert, y_JoystickRY_gefiltert
     global winkel_neigung, winkel_rollen, winkel_neigung_gefiltert, winkel_rollen_gefiltert
     global RealtimeCheckBox
+    global sample_time
+
     if RealtimeCheckBox.isChecked()==False:
     # if True:
+        measure_time = int(sample_time[0]-sample_time[-1])
         curve_RX.setData(y_JoystickRX)
         curve_RX_gefiltert.setData(y_JoystickRX_gefiltert)
+        subplot_RX.getAxis('bottom').setLabel('n. Sample - Total sample time: ' + str(measure_time) + 'ms')
         # curve_RY.setData(y_JoystickRY)
     if ptr == 0:
         subplot_RX.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
@@ -136,7 +133,7 @@ can_update_viz = False
 def get_data():
     global y_JoystickRX, y_JoystickRY
     global y_JoystickRX_gefiltert, y_JoystickRY_gefiltert
-    global time_current, sample_time
+    global time_current, sample_time, time_start
     global winkel_neigung, winkel_rollen, winkel_neigung_gefiltert, winkel_rollen_gefiltert
     global pwm_rx, pwm_ry, pwm_max, pwm_min, winkel_max, winkel_min
     global can_update_viz
@@ -154,8 +151,8 @@ def get_data():
 
     # check if data is valid
     if (len(new_data) > 0) and (new_data[0] == 'data'):
-        sample_time = time.time()*1000 - time_current
-        print("\nSample time: " + str(int(sample_time))+ ' ms')
+        time_current = time.time()*1000 - time_start
+        print("\nSample time: " + str(int(time_current))+ ' ms')
         print("data [header,x_raw,y_raw,z_raw]")
         print(new_data)
 
@@ -175,6 +172,10 @@ def get_data():
         y_JoystickRX[0] = pwm_rx
         y_JoystickRY[1:] = y_JoystickRY[:-1]
         y_JoystickRY[0] = pwm_ry
+        sample_time[1:] = sample_time[:-1]
+        sample_time[0] = time_current
+        print('time_start ' + str(sample_time[0]))
+        print('time_end ' + str(sample_time[-1]))
        
         rx_glatt = FIR.filtertest(y_JoystickRX[0:5])
         print("glatt")
@@ -197,15 +198,7 @@ def get_data():
 ###################################################################
 viz_update_interval = 100
 def main():
-    global time_current, sample_time, RealtimeCheckBox
     get_data()
-    # not call update_visualization directly to raise performance
-    # and to reduce latency
-    # if sample_time > viz_update_interval and can_update_viz and RealtimeCheckBox.isChecked()==False:
-        # print("update plot")
-        # update_visualization()
-        # print("finish at:" + str(time.time()*1000-time_current))
-        # time_current = time.time()*1000
 
 
 # 

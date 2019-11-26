@@ -94,6 +94,7 @@ curve_RX = subplot_RX.plot(pen='y')
 curve_RX_gefiltert = subplot_RX.plot(pen='m')
 
 """
+win.nextRow()
 # Rollen Plot
 subplot_RY = win.addPlot(title="RY plot")
 subplot_RY.setYRange(y_min,y_max,padding=0)
@@ -106,26 +107,6 @@ axis_y_RY.linkToView(subplot_RY.getViewBox())
 axis_y_RY.setScale(1/255)
 axis_y_RY.setLabel('Beschleunigung', units='g')
 curve_RY = subplot_RY.plot(pen='y')
-
-win.nextRow()
-
-# Nickwinkel Plot
-subplot_neigung = win.addPlot(title="Neigung")
-subplot_neigung.setYRange(-1.2,1.2,padding=0)
-curve_neigung = subplot_neigung.plot(pen='r')
-curve_neigung_gefiltert = subplot_neigung.plot(pen='y')
-# subplot_neigung.setAspectLocked()
-subplot_neigung.hideAxis('left')
-subplot_neigung.getAxis('left').setScale(45)
-
-# Rollwinkel Plot
-subplot_rollen = win.addPlot(title="Rollen")
-subplot_rollen.setYRange(-1.2,1.2,padding=0)
-curve_rollen = subplot_rollen.plot(pen='r')
-curve_rollen_gefiltert = subplot_rollen.plot(pen='y')
-# subplot_rollen.setAspectLocked()
-subplot_rollen.hideAxis('left')
-subplot_rollen.getAxis('left').setScale(45)
 """
 
 ptr = 0
@@ -134,8 +115,8 @@ sample_time = time.time()*1000
 
 
 def update_visualization():
-    global curve_RX, curve_RY,curve_neigung,curve_rollen, ptr, subplot_RX,subplot_RY, subplot_neigung, subplot_rollen
-    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, y_neigung_gefiltert, y_rollen_gefiltert
+    global curve_RX, curve_RY,curve_neigung,curve_rollen, ptr, subplot_RX,subplot_RY
+    global y_JoystickRX, y_JoystickRY
     global y_JoystickRX_gefiltert, y_JoystickRY_gefiltert
     global winkel_neigung, winkel_rollen, winkel_neigung_gefiltert, winkel_rollen_gefiltert
     global RealtimeCheckBox
@@ -144,22 +125,16 @@ def update_visualization():
         curve_RX.setData(y_JoystickRX)
         curve_RX_gefiltert.setData(y_JoystickRX_gefiltert)
         # curve_RY.setData(y_JoystickRY)
-        # curve_neigung.setData(y_neigung)
-        # curve_rollen.setData(y_rollen)
-        # curve_neigung_gefiltert.setData(y_neigung_gefiltert)
-        # curve_rollen_gefiltert.setData(y_rollen_gefiltert)
     if ptr == 0:
         subplot_RX.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
         # subplot_RY.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
-        # subplot_neigung.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
-        # subplot_rollen.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
     ptr += 1
 
 button.clicked.connect(update_visualization)
 
 can_update_viz = False
 def get_data():
-    global y_JoystickRX, y_JoystickRY, y_neigung, y_rollen, y_neigung_gefiltert, y_rollen_gefiltert
+    global y_JoystickRX, y_JoystickRY
     global y_JoystickRX_gefiltert, y_JoystickRY_gefiltert
     global time_current, sample_time
     global winkel_neigung, winkel_rollen, winkel_neigung_gefiltert, winkel_rollen_gefiltert
@@ -193,10 +168,6 @@ def get_data():
         pwm_rx = (winkel_rollen_gefiltert-winkel_min)*(pwm_max-pwm_min)/(winkel_max-winkel_min)+pwm_min
         pwm_ry = (winkel_neigung_gefiltert-winkel_min)*(pwm_max-pwm_min)/(winkel_max-winkel_min)+pwm_min
 
-        # send data back to arduino
-        # send_string = str(pwm_rx) + "X" + str(pwm_ry) + "YE"
-        # ser.write(send_string.encode("utf-8"))
-        
         print("winkel [nicken,rollen]") 
         print([winkel_neigung, winkel_rollen])
         # update data source for visualisation
@@ -204,10 +175,6 @@ def get_data():
         y_JoystickRX[0] = pwm_rx
         y_JoystickRY[1:] = y_JoystickRY[:-1]
         y_JoystickRY[0] = pwm_ry
-        y_neigung = np.tan(np.deg2rad(winkel_neigung))*x_neigung
-        y_rollen = np.tan(np.deg2rad(winkel_rollen))*x_rollen
-        y_neigung_gefiltert = np.tan(np.deg2rad(winkel_neigung_gefiltert))*x_neigung
-        y_rollen_gefiltert = np.tan(np.deg2rad(winkel_rollen_gefiltert))*x_rollen
        
         rx_glatt = FIR.filtertest(y_JoystickRX[0:5])
         print("glatt")

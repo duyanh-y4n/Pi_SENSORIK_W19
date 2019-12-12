@@ -177,12 +177,12 @@ def get_data():
         print('time_start ' + str(sample_time[0]))
         print('time_end ' + str(sample_time[-1]))
        
-        rx_glatt = FIR.filtertest(y_JoystickRX[0:5])
+        rx_glatt = FIR.filtertest(y_JoystickRX[0:10])
         print("glatt")
         print(rx_glatt)
         print("raw")
         print(y_JoystickRX[0])
-        ry_glatt = FIR.filtertest(y_JoystickRY[0:5])
+        ry_glatt = FIR.filtertest(y_JoystickRY[0:10])
         y_JoystickRX_gefiltert[1:] = y_JoystickRX_gefiltert[:-1]
         y_JoystickRX_gefiltert[0] = rx_glatt[-1]
 

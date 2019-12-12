@@ -10,21 +10,21 @@ class FirFil(object):
 
 # Definiere niedrigste Frequenz der Störung als 10 Hz
 # Grenzfrequenz des Filters:
-        self.cutoff_frq = 10
+        self.cutoff_frq = 3
 # für firwin auf die Nyquistfrequenz normieren?
         self.cutoff_norm = self.cutoff_frq / self.nyquist_frq
 
 # Verzögerung des Filters = Abtastzeit * Anzahl Koeffiziente
 # Anzahl vorheriger Werte im Array nicht mehr als 5,
 # so dass die Verzögerung 50 ms nicht überschreitet
-        self.n = 5
+        self.n = 10
         self.kern = scipy.signal.firwin(self.n, self.cutoff_norm)
         self.w, self.h = scipy.signal.freqz(self.kern)
         
     def init_firwin_kern(self, cutoff_frq):
         self.cutoff_frq = cutoff_frq
         self.cutoff_norm = self.cutoff_frq / self.nyquist_frq
-        self.n = 5
+        self.n = 10
         self.kern = scipy.signal.firwin(self.n, self.cutoff_norm)
         self.w, self.h = scipy.signal.freqz(self.kern)
 

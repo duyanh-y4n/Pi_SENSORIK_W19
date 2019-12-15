@@ -60,15 +60,32 @@ app = QtGui.QApplication([])
 #mw = QtGui.QMainWindow()
 #mw.resize(800,800)
 
+################################## GUI ###############################
 win = pg.GraphicsWindow(title="Sensorik")
 # win.resize(640,480)
+win.showFullScreen()
 win.setWindowTitle('Quadrocopter Richtung')
 RealtimeCheckBox = QtGui.QCheckBox('Stop Realtime Plot')
 button = QtGui.QPushButton("Messung aufnehmen")
 layout = pg.LayoutWidget()
-layout.addWidget(win, row=1, col=0, colspan=2)
+layout.addWidget(win, row=1, col=0, colspan=4)
 layout.addWidget(RealtimeCheckBox, row=0, col=0)
 layout.addWidget(button, row=0, col=1)
+plot_info = QtGui.QLabel()
+plot_info.setText('Messungsinfo:\n\tAbtastperiode\n\tAbtastzeit:\n\t(Abtastbereich: )')
+layout.addWidget(plot_info, row=2, col=0, colspan=4)
+filter_option_widget = QtGui.QWidget()
+filter_option_layout = QtGui.QHBoxLayout()
+filter_option_widget.setLayout(filter_option_layout)
+filter_option_group = QtGui.QButtonGroup()
+filter_option_kalman = QtGui.QRadioButton('Kalman')
+filter_option_kompl = QtGui.QRadioButton('Komplementär')
+filter_option_kompl.setChecked(True)
+filter_option_layout.addWidget(filter_option_kompl)
+filter_option_layout.addWidget(filter_option_kalman)
+filter_option_group.addButton(filter_option_kompl)
+filter_option_group.addButton(filter_option_kalman)
+layout.addWidget(filter_option_widget, row=0, col=3)
 layout.show()
 
 ######### Visualization - Plotsconfiguration ###########
@@ -105,6 +122,7 @@ curve_RY = subplot_RY.plot(pen='y')
 ptr = 0
 time_start = time.time()*1000
 time_current = time.time()*1000 - time_start
+delta_t = 0 # Abtastszeit
 
 
 def update_visualization():
@@ -113,14 +131,17 @@ def update_visualization():
     global y_JoystickRX_gefiltert, y_JoystickRY_gefiltert
     global winkel_neigung, winkel_rollen, winkel_neigung_gefiltert, winkel_rollen_gefiltert
     global RealtimeCheckBox
-    global sample_time
+    global sample_time, delta_t
 
     if RealtimeCheckBox.isChecked()==False:
     # if True:
         measure_time = int(sample_time[0]-sample_time[-1])
         curve_RX.setData(y_JoystickRX)
         curve_RX_gefiltert.setData(y_JoystickRX_gefiltert)
-        subplot_RX.getAxis('bottom').setLabel('n. Sample - Total sample time: ' + str(measure_time) + 'ms')
+        # subplot_RX.getAxis('bottom').setLabel('n. Sample - Total sample time: ' + str(measure_time) + 'ms')
+        plot_info.setText('Messungsinfo: \n\tAbtastperiode: ' + str(int(delta_t)) + ' ms' +
+                '\n\tAbtastzeit: ' + str(int(sample_time[-1])) + ' ms - ' + str(int(sample_time[0])) + 'ms'
+                + '\n\t(Abtastbereich: ' + str(measure_time) + ' ms)')
         # curve_RY.setData(y_JoystickRY)
     if ptr == 0:
         subplot_RX.enableAutoRange('xy', False)  ## stop auto-scaling after the first data set is plotted
@@ -133,7 +154,7 @@ can_update_viz = False
 def get_data():
     global y_JoystickRX, y_JoystickRY
     global y_JoystickRX_gefiltert, y_JoystickRY_gefiltert
-    global time_current, sample_time, time_start
+    global time_current, sample_time, time_start, delta_t
     global winkel_neigung, winkel_rollen, winkel_neigung_gefiltert, winkel_rollen_gefiltert
     global pwm_rx, pwm_ry, pwm_max, pwm_min, winkel_max, winkel_min
     global can_update_viz
@@ -174,21 +195,31 @@ def get_data():
         y_JoystickRY[0] = pwm_ry
         sample_time[1:] = sample_time[:-1]
         sample_time[0] = time_current
-        print('time_start ' + str(sample_time[0]))
-        print('time_end ' + str(sample_time[-1]))
+        print('sample time start:  ' + str(sample_time[-1]))
+        print('sample time end  :  ' + str(sample_time[0]))
        
-        rx_glatt = FIR.filtertest(y_JoystickRX[0:10])
-        print("glatt")
-        print(rx_glatt)
-        print("raw")
-        print(y_JoystickRX[0])
-        ry_glatt = FIR.filtertest(y_JoystickRY[0:10])
-        y_JoystickRX_gefiltert[1:] = y_JoystickRX_gefiltert[:-1]
-        y_JoystickRX_gefiltert[0] = rx_glatt[-1]
 
-        # send data back to arduino
-        send_string = str(rx_glatt[-1]) + "X" + str(ry_glatt[-1]) + "YE"
-        ser.write(send_string.encode("utf-8"))
+        delta_t = (sample_time[0]-sample_time[-1])/max_sample_len
+        # TODO: Filtern einsetzen
+        if filter_option_kompl.isChecked():
+            print('--------Kompl-Filter mit delta_t = ' + str(delta_t))
+            # filter new data
+            rx_glatt = FIR.filtertest(y_JoystickRX[0:10])
+            print("glatt")
+            print(rx_glatt)
+            print("raw")
+            print(y_JoystickRX[0])
+            ry_glatt = FIR.filtertest(y_JoystickRY[0:10])
+            y_JoystickRX_gefiltert[1:] = y_JoystickRX_gefiltert[:-1]
+            y_JoystickRX_gefiltert[0] = rx_glatt[-1]
+            # send data back to arduino
+            send_string = str(rx_glatt[-1]) + "X" + str(ry_glatt[-1]) + "YE"
+            ser.write(send_string.encode("utf-8"))
+        elif filter_option_kalman.isChecked():
+            print('--------Kompl-Kalman mit delta_t = ' + str(delta_t))
+            y_JoystickRX_gefiltert[1:] = y_JoystickRX_gefiltert[:-1]
+            y_JoystickRX_gefiltert[0] = 0
+
         
         can_update_viz = True
 

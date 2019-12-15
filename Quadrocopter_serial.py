@@ -12,7 +12,8 @@ import sys
 
 def Serial_begin(bytesize, parity, baudrate, stopbit):
     if os.name == 'posix':
-        ser = serial.Serial('/dev/ttyUSB0')
+        # ser = serial.Serial('/dev/ttyUSB0')
+        ser = serial.Serial('/dev/ttyACM0')
         ser.bytesize = bytesize
         ser.parity = parity
         ser.baudrate = baudrate

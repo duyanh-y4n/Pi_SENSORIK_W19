@@ -14,6 +14,7 @@ from Quadrocopter_IMU_data_processor import get_accel_data, calculate_angle, get
 import time
 from firfiltief import FirFil
 from KomplementFilter import *
+from testkalman import *
 
 #####################################################
 # config communication
@@ -37,12 +38,17 @@ az_raw = 0
 gx_raw = 0
 gy_raw = 0
 gz_raw = 0
+
+gx_winkel = 0
+gy_winkel = 0
+gz_winkel = 0
+
 gyro_faktor = float(1000/32768)
 ########### filter ############
 # init filter
 FIR = FirFil()
 Kompl_Filter = komplementFilt()
-
+Kalman_Filter = KalManFilt()
 
 # datasample - create wrapper for datasource of visualisation
 max_sample_len = 300
@@ -166,6 +172,8 @@ def get_data():
     global y_JoystickRX_gefiltert, y_JoystickRY_gefiltert
     global time_current, sample_time, time_start, delta_t
     global winkel_neigung, winkel_rollen, winkel_neigung_gefiltert, winkel_rollen_gefiltert
+    global gx_winkel, gy_winkel, gz_winkel
+    
     global pwm_rx, pwm_ry, pwm_max, pwm_min, winkel_max, winkel_min
     global can_update_viz
     global FIR
@@ -194,6 +202,7 @@ def get_data():
         gx_raw = int(new_data[4])
         gy_raw = int(new_data[5])
         gz_raw = int(new_data[6])
+        
         gx_degr_s = gx_raw*gyro_faktor
         gy_degr_s = gy_raw*gyro_faktor
         gz_degr_s = gz_raw*gyro_faktor
@@ -208,7 +217,7 @@ def get_data():
         # update data source for visualisation
         y_JoystickRX[1:] = y_JoystickRX[:-1]
         # y_JoystickRX[0] = pwm_rx
-        y_JoystickRX[0] = winkel_neigung
+        y_JoystickRX[0] = gx_winkel
         y_JoystickRY[1:] = y_JoystickRY[:-1]
         y_JoystickRY[0] = pwm_ry
         sample_time[1:] = sample_time[:-1]
@@ -235,16 +244,22 @@ def get_data():
             ser.write(send_string.encode("utf-8"))
         elif filter_option_kalman.isChecked():
             print('--------Filter-Kalman mit delta_t = ' + str(delta_t))
+            gx_winkel = gx_winkel + float(gx_degr_s * delta_t/1000.0)
+            gy_winkel = gy_winkel + float(gy_degr_s * delta_t/1000.0)
+            rx_glatt, ry_glatt = Kalman_Filter.kalmanen(np.array([[gx_winkel],[gy_winkel]]),np.array([[winkel_neigung],[winkel_rollen]]),delta_t)
             y_JoystickRX_gefiltert[1:] = y_JoystickRX_gefiltert[:-1]
-            y_JoystickRX_gefiltert[0] = 0
+            y_JoystickRX_gefiltert[0] = rx_glatt
         elif filter_option_kompl.isChecked():
             print('--------Filter-Kompl mit delta_t = ' + str(delta_t))
+            gx_winkel = gx_winkel + float(gx_degr_s * delta_t/1000.0)
+            gy_winkel = gy_winkel + float(gy_degr_s * delta_t/1000.0)
             Kompl_Filter.alpha = 0.89
             rx_glatt = Kompl_Filter.werte_filtern(gx_degr_s, winkel_neigung, delta_t/1000)
             print(gx_raw)
             print(gx_degr_s)
             print(str(rx_glatt)  + ' / ' + str(winkel_neigung) )
             y_JoystickRX_gefiltert[1:] = y_JoystickRX_gefiltert[:-1]
+            y_JoystickRX[0] = gx_winkel
             y_JoystickRX_gefiltert[0] = rx_glatt
 
         

@@ -39,5 +39,3 @@ class KalManFilt():
         theta_hat = self.state_estimate[2]
         
         return phi_hat, theta_hat
-
-test_object = KalManFilt()

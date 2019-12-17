@@ -15,6 +15,7 @@ import time
 from firfiltief import FirFil
 from KomplementFilter import *
 from testkalman import *
+from Quadrocopter_Data_Analyse_utils import *
 
 #####################################################
 # config communication
@@ -25,6 +26,11 @@ uart_baudrate = 115200
 uart_stopbits = 1
 ser = Serial_begin(uart_bytesize, uart_parity,
                    uart_baudrate, uart_stopbits)
+
+#####################################################
+# Classificator
+#####################################################
+clf = make_classificator()
 
 #####################################################
 # Init Visualization
@@ -84,6 +90,9 @@ layout = pg.LayoutWidget()
 layout.addWidget(win, row=1, col=0, colspan=4)
 layout.addWidget(RealtimeCheckBox, row=0, col=0)
 layout.addWidget(button, row=0, col=1)
+state_info = QtGui.QLabel()
+state_info.setText('Zustand')
+layout.addWidget(state_info, row=0,col=2)
 plot_info = QtGui.QLabel()
 plot_info.setText('Messungsinfo:\n\tAbtastperiode\n\tAbtastzeit:\n\t(Abtastbereich: )')
 layout.addWidget(plot_info, row=2, col=0, colspan=4)
@@ -94,7 +103,7 @@ filter_option_group = QtGui.QButtonGroup()
 filter_option_kalman = QtGui.QRadioButton('Kalman')
 filter_option_kompl = QtGui.QRadioButton('Komplementär')
 filter_option_FIR = QtGui.QRadioButton('FIR')
-filter_option_kompl.setChecked(True)
+filter_option_FIR.setChecked(True)
 filter_option_layout.addWidget(filter_option_kompl)
 filter_option_layout.addWidget(filter_option_kalman)
 filter_option_layout.addWidget(filter_option_FIR)
@@ -118,7 +127,7 @@ subplot_RX.getAxis('left').setLabel('Winkel [Grad]')
 # axis_y_RX.setScale(1/255)
 # axis_y_RX.setLabel('Beschleunigung', units='g')
 curve_RX = subplot_RX.plot(pen='y', name='raw')
-curve_RX_gefiltert = subplot_RX.plot(pen='m', name='filtered')
+# curve_RX_gefiltert = subplot_RX.plot(pen='m', name='filtered')
 
 """
 win.nextRow()
@@ -154,7 +163,7 @@ def update_visualization():
     # if True:
         measure_time = int(sample_time[0]-sample_time[-1])
         curve_RX.setData(y_JoystickRX)
-        curve_RX_gefiltert.setData(y_JoystickRX_gefiltert)
+        # curve_RX_gefiltert.setData(y_JoystickRX_gefiltert)
         plot_info.setText('Messungsinfo: \n\tAbtastperiode: ' + str(int(delta_t)) + ' ms' +
                 '\n\tAbtastzeit: ' + str(int(sample_time[-1])) + ' ms - ' + str(int(sample_time[0])) + 'ms'
                 + '\n\t(Abtastbereich: ' + str(measure_time) + ' ms)')
@@ -177,6 +186,9 @@ def get_data():
     global pwm_rx, pwm_ry, pwm_max, pwm_min, winkel_max, winkel_min
     global can_update_viz
     global FIR
+    global clf, scaler
+    global state_info
+
     pwm_min = 0
     pwm_max = 255
     winkel_min = -45
@@ -202,6 +214,26 @@ def get_data():
         gx_raw = int(new_data[4])
         gy_raw = int(new_data[5])
         gz_raw = int(new_data[6])
+
+        new_data_normiert = [ax_raw/32768,
+                             ay_raw/32768,
+                             az_raw/32768,
+                             gx_raw/32768,
+                             gy_raw/32768,
+                             gz_raw/32768,
+                             ]
+        print('new data - normalized')
+        print(new_data_normiert)
+        new_data_scaled = scaler.transform([new_data_normiert])
+        print('new data - scaled')
+        print(new_data_scaled)
+        predicted =clf.predict(new_data_scaled)[0]
+        for Klasse in State:
+            if(predicted==Klasse.value):
+                # print('Predict:')
+                # print(Klasse.name)
+                state_info.setText('Zustand: ' + Klasse.name)
+
         
         gx_degr_s = gx_raw*gyro_faktor
         gy_degr_s = gy_raw*gyro_faktor
@@ -216,19 +248,26 @@ def get_data():
         print([winkel_neigung, winkel_rollen])
         # update data source for visualisation
         y_JoystickRX[1:] = y_JoystickRX[:-1]
-        # y_JoystickRX[0] = pwm_rx
-        y_JoystickRX[0] = gx_winkel
+        y_JoystickRX[0] = int(pwm_rx)
+        # y_JoystickRX[0] = gx_winkel
         y_JoystickRY[1:] = y_JoystickRY[:-1]
-        y_JoystickRY[0] = pwm_ry
+        y_JoystickRY[0] = int(pwm_ry)
         sample_time[1:] = sample_time[:-1]
         sample_time[0] = time_current
         print('sample time start:  ' + str(sample_time[-1]))
         print('sample time end  :  ' + str(sample_time[0]))
+
+        print(y_JoystickRX[0],y_JoystickRY[0])
        
 
         delta_t = (sample_time[0]-sample_time[-1])/max_sample_len
         # TODO: Filtern einsetzen
-        if filter_option_FIR.isChecked():
+        if True:
+            send_string = str(int(y_JoystickRX[0])) + "X" + str(int(y_JoystickRY[0])) + "YE"
+            ser.write(send_string.encode("utf-8"))
+            print('send: ' + send_string)
+        # if filter_option_FIR.isChecked():
+        elif filter_option_FIR.isChecked():
             print('--------FIR-Filter mit delta_t = ' + str(delta_t))
             # filter new data
             rx_glatt = FIR.filtertest(y_JoystickRX[0:10])
@@ -262,6 +301,7 @@ def get_data():
             y_JoystickRX[0] = gx_winkel
             y_JoystickRX_gefiltert[0] = rx_glatt
 
+        print('Bearbeitungszeit: ' + str(time.time()*1000-time_start-time_current))
         
         can_update_viz = True
 
